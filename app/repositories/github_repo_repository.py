@@ -31,4 +31,5 @@ def connect_repository(db: Session, team_id: int, data, connected_by: int) -> Gi
 
 
 def get_repository_by_team(db: Session, team_id: int):
-    return db.query(GithubRepository).filter(GithubRepository.team_id == team_id).first()
+    return db.query(GithubRepository).filter(GithubRepository.team_id == team_id).first()  
+    

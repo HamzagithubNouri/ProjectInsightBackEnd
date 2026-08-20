@@ -1,4 +1,18 @@
+# Environnement virtuel
 venv/
+env/
+
+# Fichiers sensibles
+.env
+*.env
+
+# Cache Python
 __pycache__/
 *.pyc
-.env
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log

@@ -20,4 +20,8 @@ class User(Base):
     school_class_id = Column(Integer, ForeignKey("school_classes.id"), nullable=True)
     school_class = relationship("SchoolClass", foreign_keys=[school_class_id])
 
+    # Rempli apres connexion OAuth GitHub reussie (voir app/services/github_service.py)
+    github_access_token = Column(String, nullable=True)
+    github_username = Column(String, nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())

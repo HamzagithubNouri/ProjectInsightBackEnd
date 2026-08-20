@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.schemas.user import UserLogin, Token, UserOut
-from app.services import auth_service
+from app.services import auth_service, github_service
 from app.auth.dependencies import get_current_user
+from app.config import settings
 
 router = APIRouter(prefix="/auth", tags=["Authentification"])
 
@@ -25,3 +27,12 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 @router.get("/me", response_model=UserOut)
 def read_current_user(current_user=Depends(get_current_user)):
     return current_user
+
+
+@router.get("/github/callback")
+def github_callback(code: str, state: str, db: Session = Depends(get_db)):
+    """PUBLIC (pas de JWT) : c'est GitHub qui redirige le navigateur ici,
+    il ne connait pas notre token. On retrouve l'utilisateur via 'state'."""
+    github_service.handle_callback(db, code, state)
+    # Retour vers Angular une fois la connexion sauvegardee
+    return RedirectResponse(url=f"{settings.frontend_url}/student/my-team?github=connected")

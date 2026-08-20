@@ -53,6 +53,8 @@ def get_my_team(db: Session, current_user) -> MyTeamOut:
             last_name=row.student.last_name,
             email=row.student.email,
             is_leader=(row.student.id == team.leader_id),
+            github_username=row.student.github_username,
+            github_linked=row.student.github_username is not None,
         )
         for row in member_rows
     ]

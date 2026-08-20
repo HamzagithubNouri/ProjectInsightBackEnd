@@ -32,6 +32,8 @@ class TeamMemberInfo(BaseModel):
     last_name: str
     email: str
     is_leader: bool
+    github_username: Optional[str] = None
+    github_linked: bool = False
 
 
 class MyTeamOut(BaseModel):
@@ -43,3 +45,20 @@ class MyTeamOut(BaseModel):
     members: List[TeamMemberInfo]
     repository: Optional[RepositoryOut] = None
     my_team_role: str  # "LEADER" ou "MEMBER"
+
+
+class MemberContribution(BaseModel):
+    student_id: int
+    first_name: str
+    last_name: str
+    github_username: Optional[str] = None
+    linked: bool
+    commits: int
+    pull_requests: int
+    percentage: float
+
+
+class TeamContributionsOut(BaseModel):
+    total_commits: int
+    total_pull_requests: int
+    contributions: List[MemberContribution]
