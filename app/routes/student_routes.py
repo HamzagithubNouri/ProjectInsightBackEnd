@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-
+from app.schemas.ai_review_schema import PRReviewResult
+from app.services import ai_review_service
 from app.database import get_db
 from app.schemas.repository_schema import RepositoryConnect, RepositoryOut
 from app.schemas.team_schema import MyTeamOut, TeamContributionsOut
@@ -77,3 +78,16 @@ def github_list_repos(current_user=Depends(get_current_user)):
 @router.get("/github/repos/{owner}/{repo_name}/branches", response_model=list[GithubBranchOut])
 def github_list_branches(owner: str, repo_name: str, current_user=Depends(get_current_user)):
     return github_service.list_branches(current_user, owner, repo_name)
+
+
+@router.get("/teams/{team_id}/pr/{pr_number}/review", response_model=PRReviewResult)
+def review_pull_request(
+    team_id: int,
+    pr_number: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Analyse une Pull Request specifique du repo de l'equipe avec LangChain
+    (chunking des gros diffs + synthese finale)."""
+    pr_num, pr_title, files = github_service.get_pr_files(current_user, team_id, pr_number, db)
+    return ai_review_service.review_pr_diff(pr_num, pr_title, files)

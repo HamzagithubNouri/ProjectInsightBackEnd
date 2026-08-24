@@ -47,3 +47,33 @@ class AutoFixResult(BaseModel):
     summary_of_changes: str
     syntax_valid: Optional[bool] = None  # None = langage non verifiable (pas Python)
     syntax_note: Optional[str] = None    # detail de l'erreur si syntax_valid=False
+
+
+class PRFileReview(BaseModel):
+    filename: str
+    findings: list[Finding]
+
+
+class DiffChunkFindings(BaseModel):
+    """Sortie intermediaire du LLM pour un morceau de diff (pas exposee telle quelle a l'API)."""
+    findings: list[Finding]
+
+
+class PRSynthesisOutput(BaseModel):
+    """Sortie intermediaire du LLM pour la synthese finale (pas exposee telle quelle a l'API)."""
+    overall_quality_score: float = Field(description="Score global de qualite du PR entier, de 0 a 10")
+    summary: str = Field(description="Resume executif en 3-5 phrases des problemes principaux du PR")
+    recurring_issues: list[str] = Field(description="Problemes qui reviennent dans plusieurs fichiers")
+
+
+class PRReviewResult(BaseModel):
+    pr_number: int
+    pr_title: str
+    files: list[PRFileReview]
+    overall_quality_score: float
+    summary: str
+    recurring_issues: list[str]
+    critical_count: int
+    high_count: int
+    medium_count: int
+    low_count: int
