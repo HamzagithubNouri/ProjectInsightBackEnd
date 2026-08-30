@@ -9,6 +9,10 @@ from langchain_core.exceptions import OutputParserException
 from langchain.output_parsers import OutputFixingParser
 from langchain_core.prompts import PromptTemplate
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from app.database import SessionLocal
+from app.models.review_history import ReviewHistoryEntry
+from app.rag.vectorstore import get_review_history_store
+from langchain_core.documents import Document as LangchainDocument
 
 from app.config import settings
 from app.schemas.ai_review_schema import (
@@ -62,6 +66,34 @@ Code a analyser (fichier: {filename}) :
 
 _review_chain = _review_prompt | _llm | _fixing_parser
 
+def _persist_and_embed_findings(findings, filename: str | None, source_type: str = "paste"):
+    db = SessionLocal()
+    docs_to_embed = []
+    try:
+        for f in findings:
+            entry = ReviewHistoryEntry(
+                source_type=source_type,
+                filename=filename,
+                finding_title=f.title,
+                finding_severity=f.severity,
+                finding_description=f.description,
+            )
+            db.add(entry)
+            docs_to_embed.append(LangchainDocument(
+                page_content=f"{f.title}\n{f.description}",
+                metadata={"severity": f.severity, "filename": filename or ""},
+            ))
+        db.commit()
+    except Exception:
+        db.rollback()  # ne bloque jamais la reponse principale si la persistance echoue
+    finally:
+        db.close()
+
+    if docs_to_embed:
+        try:
+            get_review_history_store().add_documents(docs_to_embed)
+        except Exception:
+            pass
 
 def review_code(code: str, filename: str | None = None) -> CodeReviewResult:
     if not code.strip():
@@ -85,6 +117,7 @@ def review_code(code: str, filename: str | None = None) -> CodeReviewResult:
 
     findings = result.findings
     score = max(0.0, min(10.0, result.quality_score))  # on clamp entre 0 et 10 par securite
+    _persist_and_embed_findings(findings, filename, source_type="paste")
 
     return CodeReviewResult(
         filename=filename,

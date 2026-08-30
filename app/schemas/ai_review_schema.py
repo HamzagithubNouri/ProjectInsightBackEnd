@@ -77,3 +77,16 @@ class PRReviewResult(BaseModel):
     high_count: int
     medium_count: int
     low_count: int
+    
+# Ce que le LLM doit produire (utilise par le parser LangChain, pas expose tel quel a l'API)
+class EducationalEnrichment(BaseModel):
+    educational_explanation: str
+    related_concepts: list[str]
+
+
+# Ce qui est renvoye a l'API : le finding original (inchange, controle par le code Python)
+# + l'enrichissement genere par le LLM
+class EnrichedFinding(BaseModel):
+    finding: Finding
+    educational_explanation: str
+    related_concepts: list[str]

@@ -8,7 +8,7 @@ from app.schemas.ai_review_schema import (
 )
 from app.services import ai_review_service
 from app.auth.dependencies import get_current_user
-
+from app.rag.rag_review_service import enrich_findings
 # Accessible a tout utilisateur authentifie (student ET teacher), pas de role impose
 router = APIRouter(
     prefix="/ai-review",
@@ -43,3 +43,15 @@ def generate_fix(data: AutoFixRequest):
     """Genere une version corrigee complete du fichier — appel plus lourd,
     a declencher explicitement depuis le frontend (bouton separe de la review)."""
     return ai_review_service.generate_fixed_code(data.code, data.filename)
+
+
+@router.post("/analyze-with-rag")
+def analyze_pasted_code_with_rag(data: CodeReviewRequest):
+    """Comme /analyze, mais enrichit les findings critical/high avec le RAG
+    (base de connaissances + DeepSeek-Coder-V2 16B)."""
+    result = ai_review_service.review_code(data.code, data.filename)
+    enriched = enrich_findings(result.findings)
+    return {
+        "review": result,
+        "enriched_findings": enriched,
+    }
