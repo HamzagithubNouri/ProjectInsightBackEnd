@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import engine, Base
-from app.models import user, school_class, team, team_member, github_repository, review_history  # noqa: F401
+from app.models import user, school_class, team, team_member, github_repository, review_history, pull_request_review  # noqa: F401
 from app.routes import auth_routes, admin_routes, teacher_routes, student_routes, ai_review_routes
 
 Base.metadata.create_all(bind=engine)

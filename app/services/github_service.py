@@ -84,44 +84,30 @@ def list_branches(current_user, owner: str, repo_name: str) -> list[GithubBranch
 
     return [GithubBranchOut(name=b.name) for b in repo.get_branches()]
 
-def _extract_owner_repo_from_url(github_url: str) -> str:
-    """'https://github.com/team-alpha/library-mgmt-system' -> 'team-alpha/library-mgmt-system'"""
-    return github_url.rstrip("/").replace("https://github.com/", "").replace("http://github.com/", "")
-
-
-def get_pr_files(current_user, team_id: int, pr_number: int, db):
-    """Recupere les fichiers modifies d'une PR pour le repo de l'equipe, en utilisant
-    le token GitHub du Team Leader (meme principe que team_contribution_service)."""
-    from app.repositories import team_repository, github_repo_repository, user_repository
-
-    team = team_repository.get_team_by_id(db, team_id)
-    if team is None:
-        raise HTTPException(status_code=404, detail="Equipe introuvable")
-
-    if not team_repository.is_student_in_team(db, team_id, current_user.id):
-        raise HTTPException(status_code=403, detail="Vous n'etes pas membre de cette equipe")
-
-    repo_record = github_repo_repository.get_repository_by_team(db, team_id)
-    if repo_record is None:
-        raise HTTPException(status_code=404, detail="Aucun repository connecte pour cette equipe")
-
-    if team.leader_id is None:
-        raise HTTPException(status_code=400, detail="Cette equipe n'a pas de Team Leader assigne")
-
-    leader = user_repository.get_user_by_id(db, team.leader_id)
-    if leader is None or not leader.github_access_token:
-        raise HTTPException(
-            status_code=400,
-            detail="Le Team Leader doit connecter son compte GitHub pour analyser les PR",
-        )
-
-    gh = Github(leader.github_access_token)
+def list_pull_requests(token: str, owner: str, repo_name: str) -> list[dict]:
+    gh = Github(token)
     try:
-        gh_repo = gh.get_repo(_extract_owner_repo_from_url(repo_record.github_url))
-        pr = gh_repo.get_pull(pr_number)
+        repo = gh.get_repo(f"{owner}/{repo_name}")
     except Exception:
-        raise HTTPException(status_code=404, detail="Pull Request introuvable ou inaccessible")
+        raise HTTPException(status_code=404, detail="Repository introuvable ou inaccessible")
 
-    files = [{"filename": f.filename, "patch": f.patch or ""} for f in pr.get_files()]
+    prs = []
+    for pr in repo.get_pulls(state="all"):
+        prs.append({
+            "number": pr.number,
+            "title": pr.title,
+            "state": "merged" if pr.merged else pr.state,  # "open" | "closed" | "merged"
+            "author": pr.user.login if pr.user else None,
+        })
+    return prs
 
-    return pr.number, pr.title, files
+
+def get_pr_files(token: str, owner: str, repo_name: str, pr_number: int) -> list[dict]:
+    gh = Github(token)
+    try:
+        repo = gh.get_repo(f"{owner}/{repo_name}")
+        pr = repo.get_pull(pr_number)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Pull Request introuvable")
+
+    return [{"filename": f.filename, "patch": f.patch or ""} for f in pr.get_files()]    

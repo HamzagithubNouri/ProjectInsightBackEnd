@@ -16,6 +16,7 @@ from langchain_core.documents import Document as LangchainDocument
 
 from app.config import settings
 from app.schemas.ai_review_schema import (
+    Finding,
     LLMReviewOutput,
     CodeReviewResult,
     AutoFixResult,
@@ -24,7 +25,7 @@ from app.schemas.ai_review_schema import (
     PRSynthesisOutput,
     PRReviewResult,
 )
-
+from app.models.pull_request_review import PullRequestReview
 # --- LLM et parsers, instancies une seule fois au chargement du module ---
 
 _llm = ChatOllama(
@@ -66,12 +67,13 @@ Code a analyser (fichier: {filename}) :
 
 _review_chain = _review_prompt | _llm | _fixing_parser
 
-def _persist_and_embed_findings(findings, filename: str | None, source_type: str = "paste"):
+def _persist_and_embed_findings(findings, filename: str | None, source_type: str = "paste", student_id: int | None = None):
     db = SessionLocal()
     docs_to_embed = []
     try:
         for f in findings:
             entry = ReviewHistoryEntry(
+                student_id=student_id,
                 source_type=source_type,
                 filename=filename,
                 finding_title=f.title,
@@ -85,7 +87,7 @@ def _persist_and_embed_findings(findings, filename: str | None, source_type: str
             ))
         db.commit()
     except Exception:
-        db.rollback()  # ne bloque jamais la reponse principale si la persistance echoue
+        db.rollback()
     finally:
         db.close()
 
@@ -95,7 +97,8 @@ def _persist_and_embed_findings(findings, filename: str | None, source_type: str
         except Exception:
             pass
 
-def review_code(code: str, filename: str | None = None) -> CodeReviewResult:
+
+def review_code(code: str, filename: str | None = None, student_id: int | None = None) -> CodeReviewResult:
     if not code.strip():
         raise HTTPException(status_code=400, detail="Le code fourni est vide")
 
@@ -109,15 +112,14 @@ def review_code(code: str, filename: str | None = None) -> CodeReviewResult:
             detail="Le modele a renvoye une reponse mal formee malgre la correction automatique. Reessaie.",
         )
     except Exception as exc:
-        # Erreurs de connexion / timeout Ollama (ConnectionError, ReadTimeout, etc.)
         raise HTTPException(
             status_code=503,
             detail=f"Impossible de contacter Ollama ou reponse invalide : {exc}",
         )
 
     findings = result.findings
-    score = max(0.0, min(10.0, result.quality_score))  # on clamp entre 0 et 10 par securite
-    _persist_and_embed_findings(findings, filename, source_type="paste")
+    score = max(0.0, min(10.0, result.quality_score))
+    _persist_and_embed_findings(findings, filename, source_type="paste", student_id=student_id)
 
     return CodeReviewResult(
         filename=filename,
@@ -372,3 +374,30 @@ def review_pr_diff(pr_number: int, pr_title: str, files: list[dict]) -> PRReview
         medium_count=sum(1 for f in all_findings if f.severity == "medium"),
         low_count=sum(1 for f in all_findings if f.severity == "low"),
     )
+
+def save_pr_review(db, team_id: int, reviewed_by: int, result: PRReviewResult) -> None:
+    """Upsert : une seule ligne par (team_id, pr_number), on ecrase l'ancienne."""
+    existing = (
+        db.query(PullRequestReview)
+        .filter(PullRequestReview.team_id == team_id, PullRequestReview.pr_number == result.pr_number)
+        .first()
+    )
+    payload = dict(
+        pr_title=result.pr_title,
+        files=[f.model_dump() for f in result.files],
+        overall_quality_score=result.overall_quality_score,
+        summary=result.summary,
+        recurring_issues=result.recurring_issues,
+        critical_count=result.critical_count,
+        high_count=result.high_count,
+        medium_count=result.medium_count,
+        low_count=result.low_count,
+        reviewed_by=reviewed_by,
+    )
+    if existing:
+        for key, value in payload.items():
+            setattr(existing, key, value)
+    else:
+        db.add(PullRequestReview(team_id=team_id, pr_number=result.pr_number, **payload))
+    db.commit()    
+    

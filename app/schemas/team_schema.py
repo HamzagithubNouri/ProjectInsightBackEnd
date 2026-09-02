@@ -1,6 +1,6 @@
 from typing import Optional, List
 from pydantic import BaseModel
-
+from datetime import datetime
 from app.schemas.repository_schema import RepositoryOut
 
 
@@ -62,3 +62,11 @@ class TeamContributionsOut(BaseModel):
     total_commits: int
     total_pull_requests: int
     contributions: List[MemberContribution]
+
+
+class ActivityEventOut(BaseModel):
+    type: str  # "push" | "pr_opened" | "pr_merged" | "issue_opened"
+    actor_name: str
+    actor_initials: str
+    description: str
+    created_at: datetime
