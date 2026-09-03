@@ -70,3 +70,20 @@ class ActivityEventOut(BaseModel):
     actor_initials: str
     description: str
     created_at: datetime
+
+
+class TeamSummaryOut(BaseModel):
+    id: int
+    name: str
+    member_count: int
+    repository_connected: bool
+
+
+class TeamProjectDetailsOut(BaseModel):
+    team_id: int
+    team_name: str
+    class_name: str
+    repository: Optional[RepositoryOut] = None
+    members: List[TeamMemberInfo]
+    total_commits: int
+    total_pull_requests: int    

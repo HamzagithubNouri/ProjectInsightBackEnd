@@ -1,6 +1,6 @@
 from typing import Optional, Literal
 from pydantic import BaseModel, Field
-
+from datetime import datetime
 Severity = Literal["critical", "high", "medium", "low"]
 
 
@@ -90,3 +90,12 @@ class EnrichedFinding(BaseModel):
     finding: Finding
     educational_explanation: str
     related_concepts: list[str]
+
+
+class PRSummaryOut(BaseModel):
+    number: int
+    title: str
+    state: str
+    already_reviewed: bool
+    quality_score: Optional[float] = None
+    reviewed_at: Optional[datetime] = None    

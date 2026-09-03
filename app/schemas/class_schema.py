@@ -1,6 +1,6 @@
 from typing import Optional
 from pydantic import BaseModel
-
+from app.schemas.team_schema import TeamSummaryOut
 
 class ClassCreate(BaseModel):
     name: str
@@ -19,3 +19,18 @@ class ClassOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ClassSummaryOut(BaseModel):
+    id: int
+    name: str
+    student_count: int
+    team_count: int
+
+
+class ClassDetailOut(BaseModel):
+    id: int
+    name: str
+    student_count: int
+    team_count: int
+    teams: list[TeamSummaryOut]

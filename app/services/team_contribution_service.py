@@ -208,3 +208,45 @@ def get_team_activity(db, current_user, limit: int = 10) -> list[dict]:
 
     events.sort(key=lambda e: e["created_at"], reverse=True)
     return events[:limit]
+
+
+
+def get_team_github_totals(db, team_id: int) -> tuple[int, int]:
+    """Version allegee, sans detail par membre : juste (total_commits, total_prs).
+    Ne leve jamais d'exception, renvoie (0, 0) si repo/leader/token manquant —
+    on ne veut pas qu'une erreur GitHub casse tout l'ecran Project Details."""
+    repo_record = github_repo_repository.get_repository_by_team(db, team_id)
+    if repo_record is None:
+        return 0, 0
+
+    team = team_repository.get_team_by_id(db, team_id)
+    if team is None or team.leader_id is None:
+        return 0, 0
+
+    leader = user_repository.get_user_by_id(db, team.leader_id)
+    if leader is None or not leader.github_access_token:
+        return 0, 0
+
+    gh = Github(leader.github_access_token)
+    try:
+        gh_repo = gh.get_repo(_extract_owner_repo(repo_record.github_url))
+    except Exception:
+        return 0, 0
+
+    total_commits = 0
+    try:
+        for contributor in gh_repo.get_contributors():
+            total_commits += contributor.contributions
+    except Exception:
+        pass
+
+    total_prs = 0
+    try:
+        for _ in gh_repo.get_pulls(state="all"):
+            total_prs += 1
+            if total_prs >= MAX_PULL_REQUESTS_SCANNED:
+                break
+    except Exception:
+        pass
+
+    return total_commits, total_prs    
