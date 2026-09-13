@@ -22,3 +22,13 @@ def create_teacher(db: Session, data: TeacherCreate) -> User:
     db.commit()
     db.refresh(teacher)
     return teacher
+
+def list_teachers(db: Session):
+    return user_repository.list_teachers(db)
+
+
+def delete_teacher(db: Session, teacher_id: int):
+    teacher = user_repository.get_user_by_id(db, teacher_id)
+    if teacher is None or teacher.role != "teacher":
+        raise HTTPException(status_code=404, detail="Enseignant introuvable")
+    user_repository.delete_user(db, teacher_id)    

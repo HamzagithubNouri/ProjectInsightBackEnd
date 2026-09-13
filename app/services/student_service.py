@@ -78,14 +78,26 @@ def get_my_team(db: Session, current_user) -> MyTeamOut:
 
 
 def get_recent_findings(db: Session, student_id: int, limit: int = 5):
-    return (
+    entries = (
         db.query(ReviewHistoryEntry)
         .filter(ReviewHistoryEntry.student_id == student_id)
         .order_by(ReviewHistoryEntry.created_at.desc())
         .limit(limit)
         .all()
     )
-
+    return [
+        {
+            "id": e.id,
+            "filename": e.filename,
+            "title": e.finding_title,
+            "severity": e.finding_severity,
+            "description": e.finding_description,
+            "source_type": e.source_type,
+            "created_at": e.created_at,
+        }
+        for e in entries
+    ]
+    
 def _get_repo_and_leader_token(db: Session, team_id: int, current_user):
     """Verifie l'appartenance a l'equipe, recupere le repo connecte et le
     token GitHub du leader (utilise pour TOUS les appels API GitHub, meme

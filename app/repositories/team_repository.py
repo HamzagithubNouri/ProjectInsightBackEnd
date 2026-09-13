@@ -78,3 +78,15 @@ def get_team_by_student(db: Session, student_id: int):
     if membership is None:
         return None
     return membership.team
+
+def remove_member(db: Session, team_id: int, student_id: int) -> bool:
+    member = (
+        db.query(TeamMember)
+        .filter(TeamMember.team_id == team_id, TeamMember.student_id == student_id)
+        .first()
+    )
+    if member is None:
+        return False
+    db.delete(member)
+    db.commit()
+    return True

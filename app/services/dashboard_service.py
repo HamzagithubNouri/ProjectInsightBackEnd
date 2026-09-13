@@ -48,12 +48,16 @@ def get_weekly_activity(db, current_user):
     gh = Github(leader.github_access_token)
     try:
         gh_repo = gh.get_repo(_extract_owner_repo(repo_record.github_url))
+        
         commits = gh_repo.get_commits(author=current_user.github_username, since=since)
+        
         for c in commits:
             commit_date = c.commit.author.date.date()
+            
             if commit_date in counts:
                 counts[commit_date] += 1
     except Exception:
+        
         pass  # repo inaccessible ou pas encore de commits -> compteurs a 0
 
     return [

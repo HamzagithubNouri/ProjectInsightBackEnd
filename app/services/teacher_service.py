@@ -57,7 +57,22 @@ def create_team(db: Session, data: TeamCreate):
     return team
 
 
-def add_team_member(db: Session, team_id: int, student_id: int):
+def add_team_member(db: Session, team_id: int, student_id: int, current_user):
+    team = _require_team_owner(db, team_id, current_user)
+
+    if team_repository.is_student_in_team(db, team_id, student_id):
+        raise HTTPException(status_code=400, detail="Cet etudiant est deja membre de cette equipe")
+
+    student = user_repository.get_user_by_id(db, student_id)
+    if student is None or student.role != "student":
+        raise HTTPException(status_code=404, detail="Etudiant introuvable")
+
+    if student.school_class_id != team.class_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Cet etudiant n'appartient pas a la classe de cette equipe",
+        )
+
     return team_repository.add_member(db, team_id, student_id)
 
 
@@ -209,3 +224,31 @@ def get_team_pr_review(db: Session, team_id: int, pr_number: int, current_user) 
         medium_count=saved.medium_count,
         low_count=saved.low_count,
     )
+
+
+def get_available_students(db: Session, team_id: int, current_user):
+    """Etudiants de la classe de l'equipe qui n'en sont PAS encore membres —
+    alimente la liste 'Available Students' du modal Add Member."""
+    team = _require_team_owner(db, team_id, current_user)
+
+    existing_member_ids = {
+        row.student_id for row in team_repository.get_team_members(db, team_id)
+    }
+    class_students = user_repository.list_students(db, team.class_id)
+
+    return [s for s in class_students if s.id not in existing_member_ids]
+
+
+def remove_team_member(db: Session, team_id: int, student_id: int, current_user):
+    team = _require_team_owner(db, team_id, current_user)
+
+    removed = team_repository.remove_member(db, team_id, student_id)
+    if not removed:
+        raise HTTPException(status_code=404, detail="Cet etudiant n'est pas membre de cette equipe")
+
+    # Si l'etudiant retire etait le leader, on vide le poste plutot que de
+    # laisser un leader_id fantome pointant vers un membre absent.
+    if team.leader_id == student_id:
+        team_repository.set_leader(db, team_id, None)
+
+    return {"detail": "Membre retire de l'equipe"}    

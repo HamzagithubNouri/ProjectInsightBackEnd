@@ -16,3 +16,15 @@ def list_students(db: Session, class_id: int | None = None):
     if class_id is not None:
         query = query.filter(User.school_class_id == class_id)
     return query.all()
+
+def list_teachers(db: Session):
+    return db.query(User).filter(User.role == "teacher").all()
+
+
+def delete_user(db: Session, user_id: int) -> bool:
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        return False
+    db.delete(user)
+    db.commit()
+    return True

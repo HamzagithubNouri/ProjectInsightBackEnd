@@ -55,8 +55,8 @@ def list_teams(db: Session = Depends(get_db), current_user=Depends(get_current_u
 
 
 @router.post("/teams/{team_id}/members", response_model=TeamMemberOut)
-def add_member(team_id: int, data: AddTeamMember, db: Session = Depends(get_db)):
-    return teacher_service.add_team_member(db, team_id, data.student_id)
+def add_member(team_id: int, data: AddTeamMember, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    return teacher_service.add_team_member(db, team_id, data.student_id, current_user)
 
 
 
@@ -78,3 +78,14 @@ def list_team_prs(team_id: int, db: Session = Depends(get_db), current_user=Depe
 @router.get("/teams/{team_id}/prs/{pr_number}/review", response_model=PRReviewResult)
 def get_team_pr_review(team_id: int, pr_number: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     return teacher_service.get_team_pr_review(db, team_id, pr_number, current_user)
+
+
+
+@router.get("/teams/{team_id}/available-students", response_model=list[UserOut])
+def get_available_students(team_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    return teacher_service.get_available_students(db, team_id, current_user)
+
+
+@router.delete("/teams/{team_id}/members/{student_id}")
+def remove_member(team_id: int, student_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    return teacher_service.remove_team_member(db, team_id, student_id, current_user)    
